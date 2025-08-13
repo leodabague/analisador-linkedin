@@ -217,7 +217,7 @@ const LinkedInInsightsAnalyzer = () => {
         // Limpar nome da empresa
         company = company
           .replace(/\b(ltda|ltd|inc|sa|s\.a\.)\b/gi, '')
-          .replace(/[^\w\s]/g, ' ')
+          .replace(/[^\p{L}\p{N}\s]/gu, ' ')
           .replace(/\s+/g, ' ')
           .trim();
           
@@ -257,7 +257,7 @@ const LinkedInInsightsAnalyzer = () => {
 
       company = company
         .replace(/\b(ltda|ltd|inc|sa|s\.a\.)\b/gi, '')
-        .replace(/[^\w\s]/g, ' ')
+        .replace(/[^\p{L}\p{N}\s]/gu, ' ')
         .replace(/\s+/g, ' ')
         .trim();
       if (company.length <= 2) return;
