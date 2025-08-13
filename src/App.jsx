@@ -1049,18 +1049,50 @@ const LinkedInInsightsAnalyzer = () => {
             return (
               <>
                 <div className="space-y-2">
-                  {pageItems.map((person, i) => (
-                    <div key={`${person.linkedin_url || person.name || i}-${start + i}`} className="flex items-center justify-between bg-gray-50 rounded p-3">
-                      <div>
-                        <div className="font-medium">{person.name || 'Sem nome'}</div>
-                        <div className="text-sm text-gray-600">{person.title}</div>
-                        <div className="text-xs text-gray-500">{person.location}</div>
+                  {pageItems.map((person, i) => {
+                    // Extract company using the same logic as companyExtraction
+                    let company = '';
+                    if (person.title) {
+                      const title = String(person.title || '').toLowerCase();
+                      const patterns = [
+                        /at\s+([^|,]+)/,
+                        /@\s*([^|,]+)/,
+                        /\|\s*([^|]+)$/,
+                        /em\s+([^|,]+)/,
+                        /na\s+([^|,]+)/
+                      ];
+                      
+                      for (const pattern of patterns) {
+                        const match = title.match(pattern);
+                        if (match) { 
+                          company = match[1].trim(); 
+                          break; 
+                        }
+                      }
+                      
+                      if (company) {
+                        company = company
+                          .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+                          .replace(/\s+/g, ' ')
+                          .trim();
+                        if (company.length <= 2) company = '';
+                      }
+                    }
+
+                    return (
+                      <div key={`${person.linkedin_url || person.name || i}-${start + i}`} className="flex items-center justify-between bg-gray-50 rounded p-3">
+                        <div>
+                          <div className="font-medium">{person.name || 'Sem nome'}</div>
+                          <div className="text-sm text-gray-600">{person.title}</div>
+                          {company && <div className="text-xs text-blue-600 font-medium">{company}</div>}
+                          <div className="text-xs text-gray-500">{person.location}</div>
+                        </div>
+                        {person.linkedin_url && (
+                          <a href={person.linkedin_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Perfil</a>
+                        )}
                       </div>
-                      {person.linkedin_url && (
-                        <a href={person.linkedin_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Perfil</a>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="flex items-center justify-between mt-4">
