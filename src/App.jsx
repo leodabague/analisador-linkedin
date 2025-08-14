@@ -106,6 +106,8 @@ const LinkedInInsightsAnalyzer = () => {
   const [selectedSeniority, setSelectedSeniority] = useState('');
   const [selectedSeniorityPage, setSelectedSeniorityPage] = useState(1);
   const [companiesPage, setCompaniesPage] = useState(1);
+  const [peoplePage, setPeoplePage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const resetCompaniesPage = () => {
     setCompaniesPage(1);
@@ -287,6 +289,7 @@ const LinkedInInsightsAnalyzer = () => {
     if (!data.length) return { counts, rawMap, companyNames: [] };
 
     data.forEach(person => {
+      if (!person.linkedin_url || person.linkedin_url.trim() === '') return;
       if (!person.title) return;
       const title = String(person.title || '').toLowerCase();
 
@@ -468,6 +471,7 @@ const LinkedInInsightsAnalyzer = () => {
     };
 
     data.forEach(person => {
+      if (!person.linkedin_url || person.linkedin_url.trim() === '') return;
       const title = String(person.title || '').toLowerCase();
       for (const [area, pattern] of Object.entries(areaPatterns)) {
         if (pattern.test(title)) {
@@ -495,6 +499,7 @@ const LinkedInInsightsAnalyzer = () => {
     };
 
     data.forEach(person => {
+      if (!person.linkedin_url || person.linkedin_url.trim() === '') return;
       const title = String(person.title || '').toLowerCase();
       for (const [level, pattern] of Object.entries(seniorityPatterns)) {
         if (pattern.test(title)) {
@@ -515,6 +520,7 @@ const LinkedInInsightsAnalyzer = () => {
     const seniorities = {};
     
     data.forEach(person => {
+      if (!person.linkedin_url || person.linkedin_url.trim() === '') return;
       if (!person.title) return;
       
       const title = person.title.toLowerCase();
@@ -572,16 +578,18 @@ const LinkedInInsightsAnalyzer = () => {
   const connectionAnalysis = useMemo(() => {
     if (!data.length) return {};
     
+    const filteredData = data.filter(p => p.linkedin_url && p.linkedin_url.trim() !== '');
+    
     const degrees = {};
-    const mutualConnections = data
+    const mutualConnections = filteredData
       .filter(p => p.mutual_connections && p.mutual_connections > 0)
       .sort((a, b) => b.mutual_connections - a.mutual_connections)
       .slice(0, 20);
       
-    const totalMutualConnections = data.reduce((sum, p) => sum + (p.mutual_connections || 0), 0);
-    const avgMutualConnections = totalMutualConnections / data.length;
+    const totalMutualConnections = filteredData.reduce((sum, p) => sum + (p.mutual_connections || 0), 0);
+    const avgMutualConnections = filteredData.length > 0 ? totalMutualConnections / filteredData.length : 0;
     
-    data.forEach(person => {
+    filteredData.forEach(person => {
       const degree = person.degree_connection || 'Unknown';
       degrees[degree] = (degrees[degree] || 0) + 1;
     });
@@ -590,27 +598,57 @@ const LinkedInInsightsAnalyzer = () => {
       degrees: Object.entries(degrees),
       topConnectors: mutualConnections,
       avgMutualConnections: Math.round(avgMutualConnections * 10) / 10,
-      totalConnections: data.length
+      totalConnections: filteredData.length
     };
   }, [data]);
 
-  // Análise de localização
-  const locationAnalysis = useMemo(() => {
+  // Análise de pessoas com busca
+  const peopleAnalysis = useMemo(() => {
     if (!data.length) return [];
     
-    const locations = {};
+    const validPeople = data.filter(person => person.linkedin_url && person.linkedin_url.trim() !== '');
     
-    data.forEach(person => {
-      if (!person.location || person.location.trim() === '') return;
+    if (!searchTerm.trim()) return validPeople;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return validPeople.filter(person => {
+      const name = (person.name || '').toLowerCase();
+      const title = (person.title || '').toLowerCase();
       
-      const location = person.location.trim();
-      locations[location] = (locations[location] || 0) + 1;
+      // Extract company from title for search
+      let company = '';
+      if (person.title) {
+        const titleLower = String(person.title || '').toLowerCase();
+        const patterns = [
+          /at\s+([^|,]+)/,
+          /@\s*([^|,]+)/,
+          /\|\s*([^|]+)$/,
+          /em\s+([^|,]+)/,
+          /na\s+([^|,]+)/
+        ];
+        
+        for (const pattern of patterns) {
+          const match = titleLower.match(pattern);
+          if (match) { 
+            company = match[1].trim(); 
+            break; 
+          }
+        }
+        
+        if (company) {
+          company = company
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+        }
+      }
+      
+      return name.includes(searchLower) || 
+             title.includes(searchLower) || 
+             company.includes(searchLower);
     });
-    
-    return Object.entries(locations)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 15);
-  }, [data]);
+  }, [data, searchTerm]);
 
   const renderUpload = () => (
     <div className="max-w-md mx-auto">
@@ -1181,39 +1219,136 @@ const LinkedInInsightsAnalyzer = () => {
     </div>
   );
 
-  const renderLocations = () => (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <div className="flex items-center mb-6">
-        <MapPin className="w-6 h-6 text-red-500 mr-2" />
-        <h2 className="text-2xl font-bold text-gray-800">Análise Geográfica</h2>
-      </div>
-      
-      {locationAnalysis.length > 0 ? (
-        <div className="space-y-3">
-          <p className="text-gray-600 mb-4">Distribuição geográfica da sua rede:</p>
-          
-          {locationAnalysis.map(([location, count], index) => (
-            <div key={location} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center">
-                <span className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
-                  {index + 1}
-                </span>
-                <span className="font-medium">{location}</span>
-              </div>
-              <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold">
-                {count} pessoas
-              </span>
+  const renderPeople = () => {
+    const pageSize = 10;
+    const totalPages = Math.max(1, Math.ceil(peopleAnalysis.length / pageSize));
+    const page = Math.min(peoplePage, totalPages);
+    const start = (page - 1) * pageSize;
+    const pageItems = peopleAnalysis.slice(start, start + pageSize);
+
+    return (
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="flex items-center mb-6">
+          <Users className="w-6 h-6 text-indigo-500 mr-2" />
+          <h2 className="text-2xl font-bold text-gray-800">Lista de Pessoas</h2>
+        </div>
+        
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Buscar por nome, empresa ou cargo..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPeoplePage(1);
+              }}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          {searchTerm && (
+            <p className="text-sm text-gray-600 mt-2">
+              {peopleAnalysis.length} resultado(s) para "{searchTerm}"
+            </p>
+          )}
+        </div>
+
+        {peopleAnalysis.length > 0 ? (
+          <>
+            <div className="space-y-3 mb-6">
+              {pageItems.map((person, i) => {
+                // Extract company using the same logic as companyExtraction
+                let company = '';
+                if (person.title) {
+                  const title = String(person.title || '').toLowerCase();
+                  const patterns = [
+                    /at\s+([^|,]+)/,
+                    /@\s*([^|,]+)/,
+                    /\|\s*([^|]+)$/,
+                    /em\s+([^|,]+)/,
+                    /na\s+([^|,]+)/
+                  ];
+                  
+                  for (const pattern of patterns) {
+                    const match = title.match(pattern);
+                    if (match) { 
+                      company = match[1].trim(); 
+                      break; 
+                    }
+                  }
+                  
+                  if (company) {
+                    company = company
+                      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+                      .replace(/\s+/g, ' ')
+                      .trim();
+                    if (company.length <= 2) company = '';
+                  }
+                }
+
+                return (
+                  <div key={`${person.linkedin_url || person.name || i}-${start + i}`} className="flex items-center justify-between bg-gray-50 rounded-lg p-4">
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-900">{person.name || 'Sem nome'}</div>
+                      <div className="text-sm text-gray-600 mt-1">{person.title}</div>
+                      {company && <div className="text-xs text-indigo-600 font-medium mt-1">{company}</div>}
+                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-3">
+                        {person.location && <span>📍 {person.location}</span>}
+                        {person.degree_connection && <span>🔗 {person.degree_connection}</span>}
+                        {person.mutual_connections > 0 && <span>🤝 {person.mutual_connections} conexões mútuas</span>}
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 ml-4">
+                      {person.linkedin_url && (
+                        <a 
+                          href={person.linkedin_url} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="inline-flex items-center px-3 py-1 rounded bg-indigo-500 hover:bg-indigo-600 text-white text-sm"
+                        >
+                          Ver Perfil
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">Nenhuma informação de localização encontrada nos dados.</p>
-        </div>
-      )}
-    </div>
-  );
+
+            {peopleAnalysis.length > pageSize && (
+              <div className="flex items-center justify-between border-t pt-4">
+                <button
+                  onClick={() => setPeoplePage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className={`inline-flex items-center px-4 py-2 rounded ${page <= 1 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-white border hover:bg-gray-50'}`}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
+                </button>
+                <div className="text-sm text-gray-700">
+                  Página {page} de {totalPages} • Mostrando {pageItems.length} de {peopleAnalysis.length} pessoas
+                </div>
+                <button
+                  onClick={() => setPeoplePage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className={`inline-flex items-center px-4 py-2 rounded ${page >= totalPages ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-white border hover:bg-gray-50'}`}
+                >
+                  Próxima <ChevronRight className="w-4 h-4 ml-1" />
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-8">
+            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">
+              {searchTerm ? 'Nenhuma pessoa encontrada com os critérios de busca.' : 'Nenhuma pessoa encontrada nos dados.'}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderSummary = () => (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -1285,7 +1420,7 @@ const LinkedInInsightsAnalyzer = () => {
     { id: 'companies', label: 'Empresas', icon: BarChart3, component: renderCompanies },
     { id: 'roles', label: 'Cargos', icon: Users, component: renderRoles },
     { id: 'connections', label: 'Conexões', icon: TrendingUp, component: renderConnections },
-    { id: 'locations', label: 'Localizações', icon: MapPin, component: renderLocations },
+    { id: 'people', label: 'Pessoas', icon: Search, component: renderPeople },
     { id: 'summary', label: 'Resumo', icon: FileText, component: renderSummary }
   ];
 
@@ -1298,7 +1433,7 @@ const LinkedInInsightsAnalyzer = () => {
           {data.length > 0 && (
             <div className="mt-4 inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full">
               <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-              {data.length.toLocaleString()} contatos carregados
+              {data.filter(p => p.linkedin_url && p.linkedin_url.trim() !== '').length.toLocaleString()} contatos carregados
             </div>
           )}
         </div>
