@@ -3,6 +3,68 @@ import { Upload, BarChart3, Users, MapPin, TrendingUp, Search, FileText, Downloa
 import Papa from 'papaparse';
 
 const LinkedInInsightsAnalyzer = () => {
+  // Company aliases for known variations
+  const companyAliases = {
+    'airbnb': ['airbnb inc', 'airbnb.com'],
+    'amazon': ['amazon.com', 'amazon web services', 'aws', 'amazon web services aws'],
+    'ambev': ['ambev s.a.', 'companhia de bebidas das américas'],
+    'apple': ['apple inc', 'apple computer'],
+    'bain': ['bain company', 'bain & company', 'bain and company', 'bain co'],
+    'bcg': ['boston consulting group', 'boston consulting group bcg', 'the boston consulting group'],
+    'bosch': ['bosch brasil', 'bosch brasil s.a.', 'robert bosch brasil'],
+    'bradesco': ['banco bradesco', 'bradesco s.a.'],
+    'endeavor': ['endeavor', 'endeavor brasil', 'endeavor global'],
+    'falconi': ['falconi brasil', 'falconi consultores de resultado', 'falconi consulting'],
+    'google': ['alphabet', 'alphabet inc', 'google llc'],
+    'wellhub': ['gympass', 'wellhub formerly gympass', 'wellhub (formerly gympass)'],
+    'ibm': ['international business machines', 'ibm corporation'],
+    'ifood': ['ifood delivery', 'ifood brasil'],
+    'itau': ['itaú unibanco', 'banco itaú', 'itau unibanco'],
+    'linkedin': ['linkedin corporation', 'linkedin corp'],
+    'magazine': ['magazine luiza', 'magalu'],
+    'mercadolivre': ['mercado livre', 'mercado libre', 'mercadolivre', 'mercado livre contratamos pessoas para democratizar o comércio', 'mercado livre mercado pago'],
+    'meta': ['facebook', 'meta platforms', 'facebook inc'],
+    'microsoft': ['microsoft corporation', 'microsoft corp'],
+    'natura': ['natura &co', 'natura cosméticos'],
+    'neoway': ['neoway business solutions', 'neoway', 'Uma Empresa B3'],
+    'netflix': ['netflix inc', 'netflix entertainment'],
+    'nubank': ['nu pagamentos', 'nubank brasil'],
+    'oracle': ['oracle corporation', 'oracle corp'],
+    'pag': ['pagseguro', 'pagseguro digital'],
+    'petrobras': ['petróleo brasileiro', 'petrobras s.a.'],
+    'qi tech': ['qi tech', 'qitech'],
+    'salesforce': ['salesforce.com', 'salesforce inc'],
+    'santander': ['banco santander', 'santander brasil'],
+    'spotify': ['spotify technology', 'spotify ab'],
+    'stone': ['stone pagamentos', 'stone co'],
+    'tesla': ['tesla inc', 'tesla motors'],
+    'twitter': ['x corp', 'x', 'twitter inc'],
+    'uber': ['uber technologies', 'uber technologies inc'],
+    'vale': ['vale s.a.', 'companhia vale do rio doce'],
+    'xp inc': ['xp inc', 'xp inc.', 'xp investimentos']
+  };
+
+  // Helper function to find canonical company name from aliases
+  const findCanonicalFromAliases = (companyName) => {
+    const normalized = normalizeCompanyName(companyName);
+    
+    for (const [canonical, aliases] of Object.entries(companyAliases)) {
+      const normalizedCanonical = normalizeCompanyName(canonical);
+      if (normalized === normalizedCanonical) {
+        return canonical;
+      }
+      
+      for (const alias of aliases) {
+        const normalizedAlias = normalizeCompanyName(alias);
+        if (normalized === normalizedAlias) {
+          return canonical;
+        }
+      }
+    }
+    
+    return null;
+  };
+
   // Helper functions for company name normalization and clustering
   const normalizeCompanyName = (name) => {
     return name
@@ -313,6 +375,12 @@ const LinkedInInsightsAnalyzer = () => {
         .replace(/\s+/g, ' ')
         .trim();
       if (company.length <= 2) return;
+
+      // Check if company matches any known aliases
+      const canonicalFromAlias = findCanonicalFromAliases(company);
+      if (canonicalFromAlias) {
+        company = canonicalFromAlias;
+      }
 
       counts[company] = (counts[company] || 0) + 1;
       if (!rawMap[company]) rawMap[company] = [];
