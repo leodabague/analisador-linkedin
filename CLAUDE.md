@@ -55,13 +55,16 @@ This is a **LinkedIn Network Insights Analyzer** - a React-based single-page app
 ### Major Components Structure
 - `LinkedInInsightsAnalyzer` (main component in App.jsx) handles:
   - File upload and folder selection logic
-  - All data processing and analysis computations
   - State management for UI interactions (selected companies, pagination, etc.)
   - Drill-down functionality with smooth scrolling
   - CSV export utilities
+- `src/utils/` directory contains modular utility functions:
+  - `companyUtils.js` - Company processing, normalization, clustering, and extraction logic
+  - `companyAliases.js` - Known company aliases and canonical name mapping
 
 ### Data Processing Logic
-- **Company Extraction**: Regex patterns to extract company names from job titles
+- **Company Extraction**: Centralized `extractCompanyFromTitle()` function using regex patterns
+- **Company Clustering**: Intelligent similarity-based grouping with alias resolution
 - **Role Categorization**: Pattern matching for functional areas (Technology, Sales, Marketing, etc.)
 - **Seniority Detection**: Hierarchical pattern matching (C-Level → Intern)
 - **Connection Analysis**: Mutual connections and networking metrics
@@ -91,3 +94,21 @@ The application expects LinkedIn export CSVs with these columns:
 - **Export buttons** for downloading filtered CSV results
 - **Collapsible sections** with CSS transitions for smooth expand/collapse
 - **Footer spacing** added to ensure pagination controls remain visible
+
+## Code Organization
+
+### Utility Functions
+- **Company Processing**: All company-related logic centralized in `src/utils/companyUtils.js`
+  - `extractCompanyFromTitle()` - Extract company names from job titles
+  - `normalizeCompanyName()` - Normalize company names for comparison
+  - `clusterCompanies()` - Group similar company names using intelligent algorithms
+  - `calculateSimilarity()` - Calculate similarity between company names
+- **Company Aliases**: Known company variations managed in `src/utils/companyAliases.js`
+  - Predefined mappings for major companies (consulting, tech, financial, Brazilian companies)
+  - `findCanonicalFromAliases()` - Resolve company aliases to canonical names
+
+### Best Practices
+- **DRY Principle**: Common logic extracted to reusable utility functions
+- **Modular Architecture**: Separate utility files for different concerns
+- **Consistent Processing**: All company extraction uses the same centralized logic
+- **Performance Optimized**: Caching and efficient algorithms for large datasets
